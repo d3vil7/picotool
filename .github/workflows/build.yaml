@@ -68,3 +68,30 @@ jobs:
           picotool info -a blink.uf2
           picotool info -a hello_world.uf2
           picotool info -a flash_nuke.uf2
+      
+      - name: Package Release
+        run: |
+          $installDir = "C:\Program Files (x86)\picotool"
+          mkdir release
+          Compress-Archive -Path "$installDir\*" -DestinationPath "release\picotool.zip"
+
+      # 生成唯一标签
+      - name: Generate Release Tag
+        id: tag
+        run: |
+          $date = (Get-Date).ToUniversalTime().ToString("yyyyMMdd-HHmm")
+          echo "tag=release-$date" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
+      # 上传到 GitHub Release
+      - name: Upload Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          release_name: "Picotool Release (${{ steps.tag.outputs.tag }})"
+          files: release/picotool.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
