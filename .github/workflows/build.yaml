@@ -12,8 +12,8 @@ jobs:
         os: [windows-latest]
         generator: ["Ninja"]
         mbedtls: [""]
-        libusb: ["libusb", ""]
-        compile: ["compile", ""]
+        libusb: ["libusb"]
+        compile: ["compile"]
         exclude:
           - libusb: ""
             compile: "compile"
