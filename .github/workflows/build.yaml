@@ -14,7 +14,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          choco install -y .github/workflows/choco_packages.config
+          # 仅安装必要工具，移除 MinGW
+          choco install -y cmake ninja 7zip
           curl -L https://github.com/libusb/libusb/releases/download/v1.0.27/libusb-1.0.27.7z -o libusb.7z
           7z x libusb.7z -olibusb
 
@@ -22,7 +23,7 @@ jobs:
         shell: bash
         run: echo "LIBUSB_ROOT=$(pwd)/libusb" >> "$GITHUB_ENV"
 
-      - name: Checkout Pico SDK (with submodules)
+      - name: Checkout Pico SDK
         uses: actions/checkout@v4
         with:
           repository: raspberrypi/pico-sdk
@@ -30,13 +31,15 @@ jobs:
           path: pico-sdk
           submodules: recursive
 
-      - name: Build picotool (static)
+      - name: Build picotool (static with MSVC)
         run: |
+          # 使用 MSVC 编译器
           cmake -S . -B build -G "Ninja" `
             -D PICO_SDK_PATH="${{ github.workspace }}/pico-sdk" `
             -D USE_PRECOMPILED=false `
             -D PICOTOOL_STATIC=ON `
-            -D CMAKE_EXE_LINKER_FLAGS="/SUBSYSTEM:CONSOLE" `
+            -D CMAKE_C_COMPILER=cl `
+            -D CMAKE_CXX_COMPILER=cl `
             -D CMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded"
 
           cmake --build build --config Release
