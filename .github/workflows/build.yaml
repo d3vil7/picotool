@@ -1,0 +1,49 @@
+on:
+  workflow_dispatch:  # 改为手动触发
+
+jobs:
+  build-windows:
+    name: Build Windows Release
+    runs-on: windows-latest  # 仅使用 Windows 环境
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          choco install -y .github/workflows/choco_packages.config
+          curl -L https://github.com/libusb/libusb/releases/download/v1.0.27/libusb-1.0.27.7z -o libusb.7z
+          7z x libusb.7z -olibusb
+
+      - name: Set LIBUSB_ROOT
+        shell: bash
+        run: echo "LIBUSB_ROOT=$(pwd)/libusb" >> "$GITHUB_ENV"
+
+      - name: Checkout Pico SDK
+        uses: actions/checkout@v4
+        with:
+          repository: raspberrypi/pico-sdk
+          ref: develop
+          path: pico-sdk
+          submodules: true  # 始终包含子模块
+
+      - name: Build picotool
+        run: |
+          cmake -S . -B build -G "Ninja" `
+            -D PICO_SDK_PATH="${{ github.workspace }}/pico-sdk" `
+            -D USE_PRECOMPILED=false
+          cmake --build build
+
+      - name: Create release assets
+        run: |
+          mkdir release
+          copy build\picotool.exe release\
+          7z a release/picotool.zip release/picotool.exe
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/picotool.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
