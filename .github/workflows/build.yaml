@@ -1,70 +1,70 @@
 on:
-  workflow_dispatch:  # 手动触发
+  workflow_dispatch:
 
 jobs:
-  build-windows-static:
-    name: Build Windows Static Release
-    runs-on: windows-latest
+  build:
+    # Prevent running twice for PRs from same repo
+    #if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name
+    name: Build & Test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest]
+        generator: ["Ninja"]
+        mbedtls: ["mbedtls", ""]
+        libusb: ["libusb", ""]
+        compile: ["compile", ""]
+        exclude:
+          - libusb: ""
+            compile: "compile"
+    runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Install dependencies
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
         run: |
-          # 仅安装必要工具，移除 MinGW
-          choco install -y cmake ninja 7zip
+          choco install -y .github/workflows/choco_packages.config
           curl -L https://github.com/libusb/libusb/releases/download/v1.0.27/libusb-1.0.27.7z -o libusb.7z
           7z x libusb.7z -olibusb
-
-      - name: Set LIBUSB_ROOT
+      - name: Set LIBUSB_ROOT (Windows)
+        if: runner.os == 'Windows'
         shell: bash
         run: echo "LIBUSB_ROOT=$(pwd)/libusb" >> "$GITHUB_ENV"
 
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install libusb ninja
+          brew install --cask gcc-arm-embedded
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt install cmake ninja-build python3 build-essential gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib libusb-1.0-0-dev
       - name: Checkout Pico SDK
         uses: actions/checkout@v4
         with:
           repository: raspberrypi/pico-sdk
           ref: develop
           path: pico-sdk
-          submodules: recursive
+          submodules: ${{ !(!matrix.mbedtls) }}
 
-      - name: Build picotool (static with MSVC)
+      - name: Build and Install
         run: |
-          # 使用 MSVC 编译器
-          cmake -S . -B build -G "Ninja" `
-            -D PICO_SDK_PATH="${{ github.workspace }}/pico-sdk" `
-            -D USE_PRECOMPILED=false `
-            -D PICOTOOL_STATIC=ON `
-            -D CMAKE_C_COMPILER=cl `
-            -D CMAKE_CXX_COMPILER=cl `
-            -D CMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded"
+          cmake -S . -B build -G "${{ matrix.generator }}" -D PICO_SDK_PATH="${{ github.workspace }}/pico-sdk" ${{ !matrix.libusb && '-D PICOTOOL_NO_LIBUSB=1' || '' }} ${{ matrix.compile && '-D USE_PRECOMPILED=false' || '' }}
+          cmake --build build
+          ${{ runner.os != 'Windows' && 'sudo' || '' }} cmake --install build
+      - name: Add to path (Windows)
+        if: runner.os == 'Windows'
+        run: echo "C:\Program Files (x86)\picotool\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-          cmake --build build --config Release
-
-      - name: Create release assets
+      - name: Test
         run: |
-          mkdir release
-          copy build\Release\picotool.exe release\
-          7z a release/picotool-static.zip release/picotool.exe
-
-      - name: Generate Release Tag
-        id: tag
-        run: |
-          $date = (Get-Date).ToUniversalTime().ToString("yyyyMMdd-HHmm")
-          echo "tag=static-$date" >> $env:GITHUB_OUTPUT
-        shell: pwsh
-
-      - name: Upload Release Asset
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          release_name: "Static Build (${{ steps.tag.outputs.tag }})"
-          files: release/picotool-static.zip
-          draft: false
-          prerelease: true
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          picotool help
+          curl -L https://datasheets.raspberrypi.com/soft/blink.uf2 -o blink.uf2
+          curl -L https://datasheets.raspberrypi.com/soft/hello_world.uf2 -o hello_world.uf2
+          curl -L https://datasheets.raspberrypi.com/soft/flash_nuke.uf2 -o flash_nuke.uf2
+          picotool info -a blink.uf2
+          picotool info -a hello_world.uf2
+          picotool info -a flash_nuke.uf2
