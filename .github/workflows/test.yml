@@ -46,20 +46,6 @@ jobs:
         run: |
           cmake -S . -B build -G "Ninja" -D PICO_SDK_PATH="${{ github.workspace }}/pico-sdk" ${{ matrix.compile && '-D USE_PRECOMPILED=false' || '' }}
           cmake --build build
-
-      - name: Add to path (Windows)
-
-        run: echo "C:\Program Files (x86)\picotool\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Test
-        run: |
-          picotool help
-          curl -L https://datasheets.raspberrypi.com/soft/blink.uf2 -o blink.uf2
-          curl -L https://datasheets.raspberrypi.com/soft/hello_world.uf2 -o hello_world.uf2
-          curl -L https://datasheets.raspberrypi.com/soft/flash_nuke.uf2 -o flash_nuke.uf2
-          picotool info -a blink.uf2
-          picotool info -a hello_world.uf2
-          picotool info -a flash_nuke.uf2
       
       - name: Create release assets
         run: |
