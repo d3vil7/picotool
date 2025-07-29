@@ -10,15 +10,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest]
-        generator: ["Ninja", "Unix Makefiles"]
-        mbedtls: ["mbedtls", ""]
-        libusb: ["libusb", ""]
-        compile: ["compile", ""]
-        exclude:
-          - os: 'windows-latest'
-            generator: "Unix Makefiles"
-          - libusb: ""
-            compile: "compile"
+        generator: ["Ninja"]
+        mbedtls: ["mbedtls"]
+        libusb: ["libusb"]
+        compile: ["compile"]
     runs-on: ${{ matrix.os }}
 
     steps:
