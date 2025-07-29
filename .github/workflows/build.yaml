@@ -52,7 +52,11 @@ jobs:
 
       - name: Build and Install
         run: |
-          cmake -S . -B build -G "${{ matrix.generator }}" -D PICO_SDK_PATH="${{ github.workspace }}/pico-sdk" ${{ !matrix.libusb && '-D PICOTOOL_NO_LIBUSB=1' || '' }} ${{ matrix.compile && '-D USE_PRECOMPILED=false' || '' }}
+          cmake -S . -B build -G "${{ matrix.generator }}" `
+          -D PICO_SDK_PATH="${{ github.workspace }}/pico-sdk" `
+          ${{ !matrix.libusb && '-D PICOTOOL_NO_LIBUSB=1' || '' }} `
+          ${{ matrix.compile && '-D USE_PRECOMPILED=false' || '' }} `
+          -D CMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++"
           cmake --build build
           ${{ runner.os != 'Windows' && 'sudo' || '' }} cmake --install build
       - name: Add to path (Windows)
