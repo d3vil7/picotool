@@ -1,15 +1,15 @@
 on:
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
     # Prevent running twice for PRs from same repo
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name
+    #if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name
     name: Build & Test
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [windows-latest]
         generator: ["Ninja", "Unix Makefiles"]
         mbedtls: ["mbedtls", ""]
         libusb: ["libusb", ""]
@@ -35,15 +35,6 @@ jobs:
         shell: bash
         run: echo "LIBUSB_ROOT=$(pwd)/libusb" >> "$GITHUB_ENV"
 
-      - name: Install dependencies (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew install libusb ninja
-          brew install --cask gcc-arm-embedded
-
-      - name: Install dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt install cmake ninja-build python3 build-essential gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib libusb-1.0-0-dev
       - name: Checkout Pico SDK
         uses: actions/checkout@v4
         with:
@@ -56,7 +47,7 @@ jobs:
         run: |
           cmake -S . -B build -G "${{ matrix.generator }}" -D PICO_SDK_PATH="${{ github.workspace }}/pico-sdk" ${{ !matrix.libusb && '-D PICOTOOL_NO_LIBUSB=1' || '' }} ${{ matrix.compile && '-D USE_PRECOMPILED=false' || '' }}
           cmake --build build
-          ${{ runner.os != 'Windows' && 'sudo' || '' }} cmake --install build
+
       - name: Add to path (Windows)
         if: runner.os == 'Windows'
         run: echo "C:\Program Files (x86)\picotool\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
@@ -70,3 +61,16 @@ jobs:
           picotool info -a blink.uf2
           picotool info -a hello_world.uf2
           picotool info -a flash_nuke.uf2
+      
+      - name: Create release assets
+        run: |
+          mkdir release
+          copy build\picotool.exe release\
+          7z a release/picotool.zip release/picotool.exe
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/picotool.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
