@@ -48,9 +48,21 @@ jobs:
           copy build\picotool.exe release\
           7z a release/picotool.zip release/picotool.exe
 
+      - name: Generate Release Tag
+        id: tag
+        run: |
+          $date = (Get-Date).ToUniversalTime().ToString("yyyyMMdd-HHmm")
+          echo "tag=nightly-$date" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          release_name: "Nightly Build (${{ steps.tag.outputs.tag }})"
           files: release/picotool.zip
+          draft: false
+          prerelease: true
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
