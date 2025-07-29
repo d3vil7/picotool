@@ -12,8 +12,11 @@ jobs:
         os: [windows-latest]
         generator: ["Ninja"]
         mbedtls: ["mbedtls"]
-        libusb: ["libusb"]
-        compile: ["compile"]
+        libusb: ["libusb", ""]
+        compile: ["compile", ""]
+        exclude:
+          - libusb: ""
+            compile: "compile"
     runs-on: ${{ matrix.os }}
 
     steps:
