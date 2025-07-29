@@ -11,7 +11,7 @@ jobs:
       matrix:
         os: [windows-latest]
         generator: ["Ninja"]
-        mbedtls: ["mbedtls"]
+        mbedtls: ["mbedtls", ""]
         libusb: ["libusb", ""]
         compile: ["compile", ""]
         exclude:
