@@ -1,14 +1,16 @@
 on:
-  workflow_dispatch:  # 改为手动触发
+  workflow_dispatch:  # 手动触发
 
 jobs:
   build-windows:
     name: Build Windows Release
-    runs-on: windows-latest  # 仅使用 Windows 环境
+    runs-on: windows-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive  # 关键修复：递归初始化所有子模块
 
       - name: Install dependencies
         run: |
@@ -20,13 +22,19 @@ jobs:
         shell: bash
         run: echo "LIBUSB_ROOT=$(pwd)/libusb" >> "$GITHUB_ENV"
 
-      - name: Checkout Pico SDK
+      - name: Checkout Pico SDK (with submodules)
         uses: actions/checkout@v4
         with:
           repository: raspberrypi/pico-sdk
           ref: develop
           path: pico-sdk
-          submodules: true  # 始终包含子模块
+          submodules: recursive  # 递归初始化 Pico SDK 的子模块
+
+      # 确保所有子模块都已初始化
+      - name: Verify submodules
+        run: |
+          git -C pico-sdk submodule status
+          git submodule status
 
       - name: Build picotool
         run: |
